@@ -13,12 +13,11 @@ class KIundHolzDataset(CustomDataset):
     """
     CLASSES = ("Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss")
 
-    PALETTE = [[165, 42, 42], [0, 192, 0], [196, 196, 196], [190, 153, 153],
-               [180, 165, 180], [90, 120, 150]]
+    PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
 
     def __init__(self, **kwargs):
         super(KIundHolzDataset, self).__init__(
-            img_suffix='.png',
+            img_suffix='.jpg',
             seg_map_suffix='.png',
             reduce_zero_label=False,
             **kwargs)
