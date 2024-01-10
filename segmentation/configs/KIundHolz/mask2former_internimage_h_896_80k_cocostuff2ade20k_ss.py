@@ -8,7 +8,7 @@ _base_ = [
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_80k.py'
 ]
 num_classes = 6
-load_from = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
+pretrained = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
 model = dict(
     type='EncoderDecoderMask2Former',
     backbone=dict(
@@ -65,7 +65,7 @@ model = dict(
                         feedforward_channels=4096,
                         num_fcs=2,
                         ffn_drop=0.0,
-                        with_cp=False,  # set with_cp=True to save memory
+                        with_cp=True,  # set with_cp=True to save memory
                         act_cfg=dict(type='ReLU', inplace=True)),
                     operation_order=('self_attn', 'norm', 'ffn', 'norm')),
                 init_cfg=None),
@@ -95,7 +95,7 @@ model = dict(
                     act_cfg=dict(type='ReLU', inplace=True),
                     ffn_drop=0.0,
                     dropout_layer=None,
-                    with_cp=False,  # set with_cp=True to save memory
+                    with_cp=True,  # set with_cp=True to save memory
                     add_identity=True),
                 feedforward_channels=4096,
                 operation_order=('cross_attn', 'norm', 'self_attn', 'norm',
