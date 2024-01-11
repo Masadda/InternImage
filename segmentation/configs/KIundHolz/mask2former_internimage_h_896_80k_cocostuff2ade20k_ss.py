@@ -9,7 +9,7 @@ _base_ = [
 ]
 num_classes = 6
 crop_size = (896, 896)
-load_from = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
+pretrained = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
 model = dict(
     type='EncoderDecoderMask2Former',
     backbone=dict(
