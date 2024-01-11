@@ -19,5 +19,5 @@ class KIundHolzDataset(CustomDataset):
         super(KIundHolzDataset, self).__init__(
             img_suffix='.jpg',
             seg_map_suffix='.png',
-            reduce_zero_label=False,
+            reduce_zero_label=True,
             **kwargs)
