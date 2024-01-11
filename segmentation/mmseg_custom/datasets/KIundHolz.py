@@ -11,13 +11,19 @@ from mmseg.datasets.custom import CustomDataset
 class KIundHolzDataset(CustomDataset):
     """KIundHolz dataset.
     """
-    CLASSES = ("Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss")
+    METAINFO = dict(
+        CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss")
 
-    PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
+        PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
+    )
 
-    def __init__(self, **kwargs):
-        super(KIundHolzDataset, self).__init__(
-            img_suffix='.jpg',
-            seg_map_suffix='.png',
-            reduce_zero_label=True,
+    def __init__(self,
+                 img_suffix='.jpg',
+                 seg_map_suffix='.png',
+                 reduce_zero_label=True,
+                 **kwargs) -> None:
+        super().__init__(
+            img_suffix=img_suffix,
+            seg_map_suffix=seg_map_suffix,
+            reduce_zero_label=reduce_zero_label,
             **kwargs)
