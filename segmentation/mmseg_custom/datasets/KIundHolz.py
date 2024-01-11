@@ -11,10 +11,9 @@ from mmseg.datasets.custom import CustomDataset
 class KIundHolzDataset(CustomDataset):
     """KIundHolz dataset.
     """
-    METAINFO = dict(
-        CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss"),
-        PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
-    )
+    CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss")
+
+    PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
 
     def __init__(self,
                  img_suffix='.jpg',
