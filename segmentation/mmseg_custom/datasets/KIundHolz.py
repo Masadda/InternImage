@@ -12,8 +12,7 @@ class KIundHolzDataset(CustomDataset):
     """KIundHolz dataset.
     """
     METAINFO = dict(
-        CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss")
-
+        CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss"),
         PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
     )
 
