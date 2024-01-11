@@ -8,6 +8,7 @@ _base_ = [
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_80k.py'
 ]
 num_classes = 6
+crop_size = (896, 896)
 load_from = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
 model = dict(
     type='EncoderDecoderMask2Former',
@@ -111,7 +112,6 @@ model = dict(
     test_cfg=dict(mode='whole'))
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-crop_size = (896, 896)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', reduce_zero_label=True),
