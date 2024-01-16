@@ -41,8 +41,8 @@ def main():
         '--device', default='cuda:0', help='Device used for inference')
     parser.add_argument(
         '--palette',
-        default='KIundHolz',
-        choices=['ade20k', 'cityscapes', 'cocostuff', 'KIundHolz'],
+        default='ade20k',
+        choices=['ade20k', 'cityscapes', 'cocostuff'],
         help='Color palette used for segmentation map')
     parser.add_argument(
         '--opacity',
