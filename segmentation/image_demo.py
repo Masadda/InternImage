@@ -56,20 +56,18 @@ def main():
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
     if 'CLASSES' in checkpoint.get('meta', {}):
         model.CLASSES = checkpoint['meta']['CLASSES']
-        print("meta classes", model.CLASSES)
+        palette = checkpoint['meta']['PALETTE']
     else:
         model.CLASSES = get_classes(args.palette)
-        print("get classes", model.CLASSES)
+        palette = get_palette(args.palette)
         
-    #---custom---
-    palette = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]] #hardwired colors for KIundHolz
-        
+ 
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
         for img in os.listdir(args.img):
-            test_single_image(model, osp.join(args.img, img), args.out, get_palette(args.palette), args.opacity)
+            test_single_image(model, osp.join(args.img, img), args.out, palette, args.opacity)
     else:
-        test_single_image(model, args.img, args.out, get_palette(args.palette), args.opacity)
+        test_single_image(model, args.img, args.out, palette, args.opacity)
 
 if __name__ == '__main__':
     main()
