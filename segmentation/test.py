@@ -276,7 +276,7 @@ def main():
             mmcv.dump(results, args.out)
         if args.eval:
             raw_res_file = osp.join(args.work_dir, f'eval_raw_{timestamp}.json')
-            results_str = mmcv.dump(results, raw_res_file)
+            results_str = mmcv.dump(str(results), raw_res_file)
             eval_kwargs.update(metric=args.eval)
             metric = dataset.evaluate(results, **eval_kwargs)
             metric_dict = dict(config=args.config, metric=metric)
