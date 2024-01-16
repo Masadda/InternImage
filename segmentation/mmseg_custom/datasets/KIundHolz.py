@@ -11,7 +11,7 @@ from mmseg.datasets.custom import CustomDataset
 class KIundHolzDataset(CustomDataset):
     """KIundHolz dataset.
     """
-    CLASSES = ("Schnittkante", "Faeule", "Faeule(vielleicht)", "Druckholz", "Verfaerbung", "Einwuchs_Riss")
+    CLASSES = ("Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss")
 
     PALETTE = [[0, 255, 0], [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 0, 255], [32, 32, 32]]
 
