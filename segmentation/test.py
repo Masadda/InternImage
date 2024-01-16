@@ -275,11 +275,11 @@ def main():
             print(f'\nwriting results to {args.out}')
             mmcv.dump(results, args.out)
         if args.eval:
-            raw_res_file = osp.join(args.work_dir, f'eval_raw_{timestamp}.json')
-            results_str = mmcv.dump(str(results), raw_res_file)
             eval_kwargs.update(metric=args.eval)
             metric = dataset.evaluate(results, **eval_kwargs)
-            metric_dict = dict(config=args.config, metric=metric)
+            dataset.separate_eval=True
+            metric_per_sample = dataset.evaluate(results, **eval_kwargs)
+            metric_dict = dict(config=args.config, metric=metric, per_sample=metric_per_sample)
             mmcv.dump(metric_dict, json_file, indent=4)
             if tmpdir is not None and eval_on_format_results:
                 # remove tmp dir when cityscapes evaluation
