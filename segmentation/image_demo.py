@@ -30,6 +30,12 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity):
     cv2.imwrite(out_path, img)
     print(f"Result is save at {out_path}")
 
+    #evaluation
+    gt_file = osp.join(gt_dir, osp.basename(img_name).split(".")[0] + ".png")
+    gt = cv2.imread(gt_file, cv2.IMREAD_GRAYSCALE)
+    eval = jaccard_score(gt.flatten(), result[0].flatten(), average='weighted')
+
+    return eval
 
 def main():
     parser = ArgumentParser()
@@ -65,9 +71,13 @@ def main():
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
         for img in os.listdir(args.img):
-            test_single_image(model, osp.join(args.img, img), args.out, palette, args.opacity)
+            eval = test_single_image(model, osp.join(args.img, img), args.out, palette, args.opacity)
+            evals[img]=eval
+        with open(osp.join(args.out,"eval.json"),'w') as fp:
+            json.dump(evals, fp, sort_keys=True, indent=4)
     else:
-        test_single_image(model, args.img, args.out, palette, args.opacity)
+        eval = test_single_image(model, args.img, args.out, palette, args.opacity)
+        print(img, eval)
 
 if __name__ == '__main__':
     main()
