@@ -14,7 +14,7 @@ import os.path as osp
 import os
 
 
-def test_single_image(model, img_name, out_dir, color_palette, opacity):
+def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
     result = inference_segmentor(model, img_name)
     
     # show the results
@@ -55,6 +55,9 @@ def main():
         type=float,
         default=0.5,
         help='Opacity of painted segmentation map. In (0, 1] range.')
+    
+    parser.add_argument('--ground-truth', type=str, help='ground truth dir')
+        
     args = parser.parse_args()
 
     # build the model from a config file and a checkpoint file
@@ -70,13 +73,14 @@ def main():
  
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
+        evals={}
         for img in os.listdir(args.img):
-            eval = test_single_image(model, osp.join(args.img, img), args.out, palette, args.opacity)
+            eval = test_single_image(model, osp.join(args.img, img), args.out, palette, args.opacity, args.ground_truth)
             evals[img]=eval
         with open(osp.join(args.out,"eval.json"),'w') as fp:
             json.dump(evals, fp, sort_keys=True, indent=4)
     else:
-        eval = test_single_image(model, args.img, args.out, palette, args.opacity)
+        eval = test_single_image(model, args.img, args.out, palette, args.opacity, args.ground_truth)
         print(img, eval)
 
 if __name__ == '__main__':
