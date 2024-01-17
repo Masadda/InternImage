@@ -13,6 +13,9 @@ import cv2
 import os.path as osp
 import os
 
+from sklearn.metrics import jaccard_score
+import numpy as np
+import json
 
 def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
     result = inference_segmentor(model, img_name)
