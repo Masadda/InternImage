@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 _base_ = [
-    '../_base_/models/mask2former_beit.py', '../_base_/datasets/ade20k.py',
+    '../_base_/models/mask2former_beit_ade.py', '../_base_/datasets/ade20k.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_80k.py'
 ]
 num_classes = 150

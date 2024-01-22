@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 _base_ = [
-    '../_base_/models/m2f_with_bg.py', '../_base_/datasets/KIundHolz_with_bg.py',
+    '../_base_/models/mask2former_beit_KIundHolz.py', '../_base_/datasets/KIundHolz_with_bg.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_80k.py'
 ]
 num_classes = 7

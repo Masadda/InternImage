@@ -7,39 +7,35 @@ _base_ = [
     '../_base_/models/upernet_r50.py', '../_base_/datasets/KIundHolz_with_bg.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
 ]
-pretrained = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/internimage_h_jointto22k_384.pth'
+num_classes = 7
+pretrained = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/internimage_xl_22k_192to384.pth'
 model = dict(
     backbone=dict(
         _delete_=True,
         type='InternImage',
         core_op='DCNv3',
-        channels=320,
-        depths=[6, 6, 32, 6],
-        groups=[10, 20, 40, 80],
+        channels=192,
+        depths=[5, 5, 24, 5],
+        groups=[12, 24, 48, 96],
         mlp_ratio=4.,
-        drop_path_rate=0.5,
+        drop_path_rate=0.4,
         norm_layer='LN',
-        layer_scale=None,
-        offset_scale=1.0,
-        post_norm=False,
-        dw_kernel_size=5, # for InternImage-H/G
-        res_post_norm=True, # for InternImage-H/G
-        level2_post_norm=True, # for InternImage-H/G
-        level2_post_norm_block_ids=[5, 11, 17, 23, 29], # for InternImage-H/G
-        center_feature_scale=True, # for InternImage-H/G
-        with_cp=True, #originally false; set to true to save GPU mem #RK
+        layer_scale=1.0,
+        offset_scale=2.0,
+        post_norm=True,
+        with_cp=True,
         out_indices=(0, 1, 2, 3),
         init_cfg=dict(type='Pretrained', checkpoint=pretrained)),
-    decode_head=dict(num_classes=7, in_channels=[320, 640, 1280, 2560]),
-    auxiliary_head=dict(num_classes=7, in_channels=1280),
+    decode_head=dict(num_classes=num_classes, in_channels=[192, 384, 768, 1536]),
+    auxiliary_head=dict(num_classes=num_classes, in_channels=768),
     test_cfg=dict(mode='whole'))
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
-crop_size = (896, 896)
+crop_size = (640, 640)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', reduce_zero_label=False),
-    dict(type='Resize', img_scale=(3584, 896), ratio_range=(0.5, 2.0)),
+    dict(type='Resize', img_scale=(2560, 640), ratio_range=(0.5, 2.0)),
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5),
     dict(type='PhotoMetricDistortion'),
@@ -52,7 +48,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(3584, 896),
+        img_scale=(2560, 640),
         # img_ratios=[0.5, 0.75, 1.0, 1.25, 1.5, 1.75],
         flip=False,
         transforms=[
@@ -67,14 +63,14 @@ test_pipeline = [
 optimizer = dict(
     _delete_=True, type='AdamW', lr=0.00002, betas=(0.9, 0.999), weight_decay=0.05,
     constructor='CustomLayerDecayOptimizerConstructor',
-    paramwise_cfg=dict(num_layers=50, layer_decay_rate=0.95,
-                       depths=[6, 6, 32, 6], offset_lr_scale=1.0))
+    paramwise_cfg=dict(num_layers=39, layer_decay_rate=0.94,
+                       depths=[5, 5, 24, 5], offset_lr_scale=1.0))
 lr_config = dict(_delete_=True, policy='poly',
                  warmup='linear',
                  warmup_iters=1500,
                  warmup_ratio=1e-6,
                  power=1.0, min_lr=0.0, by_epoch=False)
-# By default, models are trained on 16 GPUs with 1 images per GPU
+# By default, models are trained on 8 GPUs with 2 images per GPU
 data = dict(samples_per_gpu=2,
             train=dict(pipeline=train_pipeline),
             val=dict(pipeline=test_pipeline),
