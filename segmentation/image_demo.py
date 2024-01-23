@@ -27,10 +27,17 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
                             palette=color_palette,
                             show=False, opacity=opacity)
     
+    mask_palette = list(range(0, len(color_palette)))
+    mask = model.show_result(img_name, result,
+                            palette=mask_palette,
+                            show=False, opacity=1)
+    
     # save the results
     mmcv.mkdir_or_exist(out_dir)
     out_path = osp.join(out_dir, osp.basename(img_name))
+    mask_path = osp.join(out_dir, "mask_" + osp.basename(img_name))
     cv2.imwrite(out_path, img)
+    cv2.imwrite(mask_path, mask)
     print(f"Result is save at {out_path}")
 
     #evaluation
