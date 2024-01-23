@@ -27,10 +27,12 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
                             palette=color_palette,
                             show=False, opacity=opacity)
     
-    mask_palette = list(range(0, len(color_palette)))
-    mask = model.show_result(img_name, result,
+    #mask_palette = [[x,x,x] for x in range(0, len(color_palette))]
+    #mask = model.show_result(img_name, result,
                             palette=mask_palette,
                             show=False, opacity=1)
+    #mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    mask = result[0]
     
     # save the results
     mmcv.mkdir_or_exist(out_dir)
