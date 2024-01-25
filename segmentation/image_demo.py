@@ -28,11 +28,7 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
     img = model.show_result(img_name, result,
                             palette=color_palette,
                             show=False, opacity=opacity)
-    print(len(result))
-    for elem in result:
-        print(type(elem))
-        print(elem)
-    sys.exit()
+
     mask = result[0]
     
     # save the results

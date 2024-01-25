@@ -279,6 +279,7 @@ def main():
             metric = dataset.evaluate(results, **eval_kwargs)
             metric_dict = dict(config=args.config, metric=metric)
             mmcv.dump(metric_dict, json_file, indent=4)
+            print(results.size)
             mmcv.dump(results, os.path.join(os.path.dirname(json_file), "results.json"), indent=4)
             if tmpdir is not None and eval_on_format_results:
                 # remove tmp dir when cityscapes evaluation
