@@ -43,7 +43,8 @@ class KIundHolzDataset_no_fv(CustomDataset):
             seg_map_suffix=seg_map_suffix,
             reduce_zero_label=reduce_zero_label,
             **kwargs)
-
+            
+@DATASETS.register_module()
 class KIundHolzDataset_pipeline(CustomDataset):
     """KIundHolz dataset.
     """
