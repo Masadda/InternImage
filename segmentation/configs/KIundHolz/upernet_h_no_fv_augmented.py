@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 _base_ = [
-    '../_base_/models/upernet_r50.py', '../_base_/datasets/KIundHolz_no_fv.py',
+    '../_base_/models/upernet_r50.py', '../_base_/datasets/KIundHolz_no_fv_augmented.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_80k_eval_2k.py'
 ]
 num_classes = 7
