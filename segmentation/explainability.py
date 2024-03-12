@@ -9,10 +9,12 @@ from mmseg.apis import init_segmentor
 from mmseg.core.evaluation import get_palette
 from mmcv.runner import load_checkpoint
 from mmseg.core import get_classes
+from mmseg.datasets.pipelines import Compose
+from mmcv.parallel import collate, scatter
+
 import cv2
 import os.path as osp
 import os
-
 import numpy as np
 import json
 import torch
@@ -30,6 +32,32 @@ from captum.attr import (
 # from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
 # from pytorch_grad_cam.utils.model_targets import SemanticSegmentationTarget
 # from pytorch_grad_cam.utils.image import show_cam_on_image
+
+class LoadImage:
+    """A simple pipeline to load image."""
+
+    def __call__(self, results):
+        """Call function to load images into results.
+
+        Args:
+            results (dict): A result dict contains the file name
+                of the image to be read.
+
+        Returns:
+            dict: ``results`` will be returned containing loaded image.
+        """
+
+        if isinstance(results['img'], str):
+            results['filename'] = results['img']
+            results['ori_filename'] = results['img']
+        else:
+            results['filename'] = None
+            results['ori_filename'] = None
+        img = mmcv.imread(results['img'])
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
+        return results
 
 def explain(model, img_name, out_dir, color_palette, opacity):
     if hasattr(model, 'module'):
@@ -56,9 +84,11 @@ def explain(model, img_name, out_dir, color_palette, opacity):
     else:
         data['img_metas'] = [i.data[0] for i in data['img_metas']]
     
+    data = (data['img_metas'], False)
+    
     #create explainability (captum)
     ig = IntegratedGradients(model)
-    attributions, delta = ig.attribute(img, baseline, target=0, return_convergence_delta=True, additional_forward_args=**data)
+    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True)
     
     print(attributions, delta)
     
