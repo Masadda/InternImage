@@ -4,8 +4,8 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 _base_ = [
-    '../_base_/models/upernet_r50_W_10F+DH+V+ER.py', '../_base_/datasets/KIundHolz_no_fv_augmented.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k_eval_2k.py'
+    '../_base_/models/upernet_r50_W_start_10BG+SK.py', '../_base_/datasets/KIundHolz_no_fv_augmented.py',
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_5k_eval_2.5k.py'
 ]
 num_classes = 7
 pretrained = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/internimage_h_jointto22k_384.pth'
@@ -82,6 +82,6 @@ data = dict(samples_per_gpu=2,
             test=dict(pipeline=test_pipeline))
 runner = dict(type='IterBasedRunner')
 optimizer_config = dict(_delete_=True, grad_clip=dict(max_norm=0.1, norm_type=2))
-checkpoint_config = dict(by_epoch=False, interval=8000, max_keep_ckpts=1)
-evaluation = dict(interval=2000, metric='mIoU', save_best='mIoU')
+checkpoint_config = dict(by_epoch=False, interval=2500, max_keep_ckpts=1)
+evaluation = dict(interval=2500, metric='mIoU', save_best='mIoU')
 # fp16 = dict(loss_scale=dict(init_scale=512))
