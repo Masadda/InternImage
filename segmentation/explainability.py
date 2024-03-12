@@ -59,7 +59,7 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
-def explain(model, img, out_dir, color_palette, opacity):
+def explain(model, img, out_dir, color_palette, opacity, ground_truth):
     if hasattr(model, 'module'):
         model = model.module
     model.eval()
@@ -72,28 +72,32 @@ def explain(model, img, out_dir, color_palette, opacity):
     cfg = model.cfg
     device = next(model.parameters()).device  # model device
     # build the data pipeline
-    test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
-    test_pipeline = Compose(test_pipeline)
+    pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
+    pipeline = Compose(pipeline)
     # prepare data
     data = dict(img=img)
-    data = test_pipeline(data)
+    gt = dict(img=ground_truth)
+    data = pipeline(data)
+    gt = pipeline(gt)
     data = collate([data], samples_per_gpu=1)
+    gt = collate([gt], samples_per_gpu=1)
     if next(model.parameters()).is_cuda:
         # scatter to specified GPU
         data = scatter(data, [device])[0]
+        gt = scatter(gt, [device])[0]
     else:
         data['img_metas'] = [i.data[0] for i in data['img_metas']]
 
     img = data['img'][0]
-    data = (data['img_metas'], False)
+    gt = gt['img'][0]
+    data = {'img_metas': data['img_metas'], 'return_loss': True, 'gt_semantic_seg': gt}
     baseline = torch.zeros_like(img)
 
-    #print(img)
-    #print(data)
+    print(model.forward_train)
 
     #create explainability (captum)
     ig = IntegratedGradients(model)
-    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True)
+    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=**data, return_convergence_delta=True)
     
     print(attributions, delta)
     
@@ -129,7 +133,9 @@ def main():
         type=float,
         default=0.5,
         help='Opacity of painted segmentation map. In (0, 1] range.')
-        
+    
+    parser.add_argument('--ground-truth', type=str, help='ground truth dir')
+
     args = parser.parse_args()
 
     #set seeds
@@ -149,9 +155,9 @@ def main():
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
         for img in os.listdir(args.img):
-            explain(model, osp.join(args.img, img), args.out, palette, args.opacity)
+            explain(model, osp.join(args.img, img), args.out, palette, args.opacity, args.ground_truth)
     else:
-        explain(model, args.img, args.out, palette, args.opacity)
+        explain(model, args.img, args.out, palette, args.opacity, args.ground_truth)
 
 if __name__ == '__main__':
     main()
