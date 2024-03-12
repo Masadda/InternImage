@@ -91,11 +91,23 @@ def explain(model, img, out_dir, color_palette, opacity):
     baseline = torch.zeros_like(img)
 
     #create explainability (captum)
-    data = (data['img_metas'], model)
+    def simple_test_custom(model, img, img_meta, rescale=True):
+        """Simple test with single image."""
+        seg_logit = model.inference(img, img_meta, rescale)
+        seg_pred = seg_logit.argmax(dim=1)
+        seg_logit = seg_logit.cpu()
+        seg_pred = seg_pred.cpu().numpy()
+        # unravel batch dim
+        seg_pred = list(seg_pred)
+        print(type(seg_logit))
+        print(type(seg_pred))
+        print(seg_logit)
+        print(seg_pred)
+    return seg_pred
     def custom_forward(img, img_meta, model):
-        return model.simple_test(img, img_meta)
+        return simple_test_custom(model, img, img_meta)
     ig = IntegratedGradients(custom_forward)
-    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True, internal_batch_size=1)
+    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=(data['img_metas'], model), return_convergence_delta=True, internal_batch_size=1)
     
     print(attributions, delta)
     
