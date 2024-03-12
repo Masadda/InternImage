@@ -59,14 +59,14 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
-def explain(model, img_name, out_dir, color_palette, opacity):
+def explain(model, img, out_dir, color_palette, opacity):
     if hasattr(model, 'module'):
         model = model.module
     model.eval()
     
     #load image
-    img = torch.from_numpy(cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_BGR2RGB))
-    baseline = torch.zeros_like(img)
+    #img = torch.from_numpy(cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_BGR2RGB))
+    #baseline = torch.zeros_like(img)
     
     # create image meta required for internimage
     cfg = model.cfg
@@ -83,9 +83,14 @@ def explain(model, img_name, out_dir, color_palette, opacity):
         data = scatter(data, [device])[0]
     else:
         data['img_metas'] = [i.data[0] for i in data['img_metas']]
-    
+
+    img = data['img'][0]
     data = (data['img_metas'], False)
-    
+    baseline = torch.zeros_like(img)
+
+    #print(img)
+    #print(data)
+
     #create explainability (captum)
     ig = IntegratedGradients(model)
     attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True)
