@@ -12,6 +12,8 @@ from mmseg.core import get_classes
 from mmseg.datasets.pipelines import Compose
 from mmcv.parallel import collate, scatter
 
+from mmseg.models.segmentors.encoder_decoder import EncoderDecoder
+
 import cv2
 import os.path as osp
 import os
@@ -90,14 +92,14 @@ def explain(model, img, out_dir, color_palette, opacity, ground_truth):
 
     img = data['img'][0]
     gt = gt['img'][0]
-    data = {'img_metas': data['img_metas'], 'return_loss': True, 'gt_semantic_seg': gt}
+    data = (data['img_metas'], gt)
     baseline = torch.zeros_like(img)
 
     print(model.forward_train)
 
     #create explainability (captum)
-    ig = IntegratedGradients(model)
-    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=**data, return_convergence_delta=True)
+    ig = IntegratedGradients(EncoderDecoder.forward_train)
+    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True)
     
     print(attributions, delta)
     
