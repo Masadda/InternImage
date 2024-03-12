@@ -62,7 +62,7 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
-def explain(model, img, out_dir, color_palette, opacity, ground_truth):
+def explain(model, img, out_dir, color_palette, opacity):
     if hasattr(model, 'module'):
         model = model.module
     model.eval()
@@ -75,36 +75,26 @@ def explain(model, img, out_dir, color_palette, opacity, ground_truth):
     cfg = model.cfg
     device = next(model.parameters()).device  # model device
     # build the data pipeline
-    pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
-    pipeline = Compose(pipeline)
+    test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
+    test_pipeline = Compose(test_pipeline)
     # prepare data
     data = dict(img=img)
-    gt = dict(img=ground_truth)
-    data = pipeline(data)
-    gt = pipeline(gt)
+    data = test_pipeline(data)
     data = collate([data], samples_per_gpu=1)
-    gt = collate([gt], samples_per_gpu=1)
     if next(model.parameters()).is_cuda:
         # scatter to specified GPU
         data = scatter(data, [device])[0]
-        gt = scatter(gt, [device])[0]
     else:
         data['img_metas'] = [i.data[0] for i in data['img_metas']]
 
     img = data['img'][0]
-    gt = gt['img'][0]
-    data = (data['img_metas'], gt, model)
     baseline = torch.zeros_like(img)
 
     #create explainability (captum)
-    def test_forward(img, img_metas, gt_semantic_seg, model):
-        print('img',img.size())
-        print('gt',gt_semantic_seg.size())
-        #img = torch.squeeze(img)
-        gt_semantic_seg = torch.squeeze(gt_semantic_seg)
-        #print('img', img.size())
-        model.forward_train(img, img_metas, gt_semantic_seg)
-    ig = IntegratedGradients(test_forward)
+    data = (data['img_metas'], model)
+    def custom_forward(img, img_meta, model):
+        return model.simple_test(img, img_meta)
+    ig = IntegratedGradients(custom_forward)
     attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=data, return_convergence_delta=True, internal_batch_size=1)
     
     print(attributions, delta)
@@ -141,8 +131,6 @@ def main():
         type=float,
         default=0.5,
         help='Opacity of painted segmentation map. In (0, 1] range.')
-    
-    parser.add_argument('--ground-truth', type=str, help='ground truth dir')
 
     args = parser.parse_args()
 
@@ -163,9 +151,9 @@ def main():
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
         for img in os.listdir(args.img):
-            explain(model, osp.join(args.img, img), args.out, palette, args.opacity, args.ground_truth)
+            explain(model, osp.join(args.img, img), args.out, palette, args.opacity)
     else:
-        explain(model, args.img, args.out, palette, args.opacity, args.ground_truth)
+        explain(model, args.img, args.out, palette, args.opacity)
 
 if __name__ == '__main__':
     main()
