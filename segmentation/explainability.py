@@ -28,6 +28,7 @@ from captum.attr import (
     DeepLift,
     DeepLiftShap,
     IntegratedGradients,
+    LayerGradCam,
     LayerConductance,
     NeuronConductance,
     NoiseTunnel,
@@ -94,19 +95,32 @@ def explain(model, img, out_dir, color_palette, opacity):
     def custom_forward(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
         """Simple test with single image."""
         seg_logit = model.inference(img, img_meta, True)
-        seg_pred = seg_logit.argmax(dim=1)
         seg_logit = seg_logit.cpu()
-        seg_pred = seg_pred.cpu().numpy()
-        # unravel batch dim
-        seg_pred = list(seg_pred)
-        print(seg_logit.shape)
-        print(seg_pred.shape)
-        return seg_pred
-    ig = IntegratedGradients(custom_forward)
-    attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=(data['img_metas'][0], model), return_convergence_delta=True, internal_batch_size=1)
-    
-    print(attributions, delta)
-    
+
+
+        seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
+        select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
+        out = (seg_logit * select_inds).sum(dim=(2,3))
+
+
+        #out = model.inference(img, img_meta, True).sum(dim=(2,3))
+
+        return out
+    #ig = IntegratedGradients(custom_forward)
+    #attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=(data['img_metas'][0], model), return_convergence_delta=True, internal_batch_size=1)
+    #print(attributions, delta)
+
+    pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
+
+    #lgc = LayerGradCam(pass_forward, model.backbone.levels[3].blocks[5].dcn)
+    lgc = LayerGradCam(pass_forward, model.decode_head.fpn_bottleneck.conv)
+    img.required_grad=True
+    gc_attr = lgc.attribute(img, target=2)
+
+    gc_attr = gc_attr.cpu().detach().numpy()
+
+    np.save('gc', gc_attr)
+
     # #create explainability (grad_cam)
     # target_layers = [model.layer4[-1]]
     # cam = GradCAM(model=model, target_layers=target_layers)
