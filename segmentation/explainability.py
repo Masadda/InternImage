@@ -20,7 +20,7 @@ import numpy as np
 import json
 import torch
 
-from functools import partial
+#from functools import partial
 
 #explainability
 from captum.attr import (
@@ -33,9 +33,10 @@ from captum.attr import (
     NeuronConductance,
     NoiseTunnel,
 )
-# from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
-# from pytorch_grad_cam.utils.model_targets import SemanticSegmentationTarget
-# from pytorch_grad_cam.utils.image import show_cam_on_image
+from captum.attr import visualization as viz
+
+
+CLASS_IDXs = [0,1,2,3,4,5,6]
 
 class LoadImage:
     """A simple pipeline to load image."""
@@ -63,7 +64,10 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
-def explain(model, img, out_dir, color_palette, opacity):
+def explain(model, img_dir, out_dir):
+    img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
+    if len(img_files) == 0: raise ValueError("Image dir was found empty; Please check or provide different path.")
+
     if hasattr(model, 'module'):
         model = model.module
     model.eval()
@@ -78,18 +82,6 @@ def explain(model, img, out_dir, color_palette, opacity):
     # build the data pipeline
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)
-    # prepare data
-    data = dict(img=img)
-    data = test_pipeline(data)
-    data = collate([data], samples_per_gpu=1)
-    if next(model.parameters()).is_cuda:
-        # scatter to specified GPU
-        data = scatter(data, [device])[0]
-    else:
-        data['img_metas'] = [i.data[0] for i in data['img_metas']]
-
-    img = data['img'][0]
-    baseline = torch.zeros_like(img)
 
     #create explainability (captum)
     def custom_forward(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
@@ -97,50 +89,53 @@ def explain(model, img, out_dir, color_palette, opacity):
         seg_logit = model.inference(img, img_meta, True)
         seg_logit = seg_logit.cpu()
 
-
         seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
         select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
         out = (seg_logit * select_inds).sum(dim=(2,3))
 
-
-        #out = model.inference(img, img_meta, True).sum(dim=(2,3))
-
         return out
-    #ig = IntegratedGradients(custom_forward)
-    #attributions, delta = ig.attribute(img, baseline, target=0, additional_forward_args=(data['img_metas'][0], model), return_convergence_delta=True, internal_batch_size=1)
-    #print(attributions, delta)
 
-    pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
+    #pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
 
-    #lgc = LayerGradCam(pass_forward, model.backbone.levels[3].blocks[5].dcn)
-    lgc = LayerGradCam(pass_forward, model.decode_head.fpn_bottleneck.conv)
-    img.required_grad=True
-    gc_attr = lgc.attribute(img, target=2)
-
-    gc_attr = gc_attr.cpu().detach().numpy()
-
-    np.save('gc', gc_attr)
-
-    # #create explainability (grad_cam)
-    # target_layers = [model.layer4[-1]]
-    # cam = GradCAM(model=model, target_layers=target_layers)
+    lgc = LayerGradCam(custom_forward, model.decode_head.fpn_bottleneck.conv)
     
-    # targets = [SemanticSegmentationTarget(281)]
-    
-    # # You can also pass aug_smooth=True and eigen_smooth=True, to apply smoothing.
-    # grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-    
-    # grayscale_cam = grayscale_cam[0, :]
-    # #visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+    for img in img_files:
         
+        filename = img.split(os.sep)[-1].split('.')[0]
+        
+        # prepare data
+        data = dict(img=img)
+        data = test_pipeline(data)
+        data = collate([data], samples_per_gpu=1)
+        if next(model.parameters()).is_cuda:
+            # scatter to specified GPU
+            data = scatter(data, [device])[0]
+        else:
+            data['img_metas'] = [i.data[0] for i in data['img_metas']]
+
+        img = data['img'][0]
+        baseline = torch.zeros_like(img)
+        img.required_grad=True
+
+        gc_attr = []
+        for target_idx in CLASS_IDXs:
+            res = lgc.attribute(img, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
+            res = res.cpu().detach().numpy()
+            gc_attr.append(res)
+            
+        gc_attr = np.stack(gc_attr, axis=0)
+        np.save(os.path.join(out_dir, filename), gc_attr)
+
     return
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('img', help='Image file or a directory contains images')
+    parser.add_argument('img', help='Image directory containing images')
     parser.add_argument('config', help='Config file')
     parser.add_argument('checkpoint', help='Checkpoint file')
     parser.add_argument('--out', type=str, default="demo", help='out dir')
+    
+    #unused params
     parser.add_argument(
         '--device', default='cuda:0', help='Device used for inference')
     parser.add_argument(
@@ -172,10 +167,9 @@ def main():
         
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
-        for img in os.listdir(args.img):
-            explain(model, osp.join(args.img, img), args.out, palette, args.opacity)
+        explain(model, args.img, args.out)
     else:
-        explain(model, args.img, args.out, palette, args.opacity)
+        raise ValueError("Please provide images as path to dir")
 
 if __name__ == '__main__':
     main()
