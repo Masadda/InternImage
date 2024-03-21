@@ -19,7 +19,7 @@ import os
 import numpy as np
 import json
 import torch
-
+import torch.nn as nn
 #from functools import partial
 
 #explainability
@@ -68,9 +68,10 @@ class LoadImage:
 #create explainability (captum)
 class GradCAM_model_wrapper(nn.Module):
     def __init__(self, model):
+        super().__init__()
         self.model = model
         
-    def forward(img, img_meta): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
+    def forward(self, img, img_meta): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
         """Simple test with single image."""
         seg_logit = self.model.inference(img, img_meta, True)
         seg_logit = seg_logit.cpu()
@@ -82,13 +83,14 @@ class GradCAM_model_wrapper(nn.Module):
 
 class Deeplift_model_wrapper(nn.Module):
     def __init__(self, model):
+        super().__init__()
         self.model = model
         
     def forward(self, img, img_meta):
         seg_logit = self.model.inference(img, img_meta, True)
         seg_logit = seg_logit.cpu()
         seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
-        select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
+        select_inds = torch.zeros_like(seg_logit).scatter_(1, seg_pred, 1)
         out = (seg_logit * select_inds).sum(dim=(2,3))
 
         return out
@@ -148,9 +150,10 @@ def explain(model, img_dir, out_dir):
             dl_attr.append(dl)
             
         gc_attr = np.stack(gc_attr, axis=0)
-        dl.attr = np.stack(dl_attr, axis=0)
+        dl_attr = np.stack(dl_attr, axis=0)
         np.save(os.path.join(out_dir, 'gc_' + filename), gc_attr)
         np.save(os.path.join(out_dir, 'dl_' + filename), dl_attr)
+        print(f'saved data for sample {filename}')
 
     return
 
