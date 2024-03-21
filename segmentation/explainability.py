@@ -24,14 +24,15 @@ import torch
 
 #explainability
 from captum.attr import (
-    GradientShap,
-    DeepLift,
-    DeepLiftShap,
-    IntegratedGradients,
+    #GradientShap,
+    #DeepLift,
+    #DeepLiftShap,
+    #IntegratedGradients,
     LayerGradCam,
-    LayerConductance,
-    NeuronConductance,
-    NoiseTunnel,
+    #LayerConductance,
+    #NeuronConductance,
+    #NoiseTunnel,
+    LayerDeepLift
 )
 from captum.attr import visualization as viz
 
@@ -64,6 +65,18 @@ class LoadImage:
         results['ori_shape'] = img.shape
         return results
 
+#create explainability (captum)
+def custom_forward(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
+    """Simple test with single image."""
+    seg_logit = model.inference(img, img_meta, True)
+    seg_logit = seg_logit.cpu()
+
+    seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
+    select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
+    out = (seg_logit * select_inds).sum(dim=(2,3))
+
+    return out
+
 def explain(model, img_dir, out_dir):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
     if len(img_files) == 0: raise ValueError("Image dir was found empty; Please check or provide different path.")
@@ -85,21 +98,10 @@ def explain(model, img_dir, out_dir):
     test_pipeline = [LoadImage()] + cfg.data.test.pipeline[1:]
     test_pipeline = Compose(test_pipeline)
 
-    #create explainability (captum)
-    def custom_forward(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
-        """Simple test with single image."""
-        seg_logit = model.inference(img, img_meta, True)
-        seg_logit = seg_logit.cpu()
-
-        seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
-        select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
-        out = (seg_logit * select_inds).sum(dim=(2,3))
-
-        return out
-
     #pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
 
     lgc = LayerGradCam(custom_forward, model.decode_head.fpn_bottleneck.conv)
+    ldl = LayerDeepLift(model, model.decode_head.fpn_bottleneck.conv)
     
     for img in img_files:
         
@@ -120,13 +122,19 @@ def explain(model, img_dir, out_dir):
         img.required_grad=True
 
         gc_attr = []
+        dl_attr = []
         for target_idx in CLASS_IDXs:
-            res = lgc.attribute(img, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
-            res = res.cpu().detach().numpy()
-            gc_attr.append(res)
+            gc = lgc.attribute(img, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
+            gc = gc.cpu().detach().numpy()
+            gc_attr.append(gc)
+            dl = ldl.attribute(img, baselines=baseline, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
+            dl = dl.cpu().detach().numpy()
+            dl_attr.append(dl)
             
         gc_attr = np.stack(gc_attr, axis=0)
-        np.save(os.path.join(out_dir, filename), gc_attr)
+        dl.attr = np.stack(dl_attr, axis=0)
+        np.save(os.path.join(out_dir, 'gc_' + filename), gc_attr)
+        np.save(os.path.join(out_dir, 'dl_' + filename), dl_attr)
 
     return
 
