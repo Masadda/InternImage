@@ -125,15 +125,30 @@ def explain(model, img_dir, out_dir):
             data['img_metas'] = [i.data[0] for i in data['img_metas']]
 
         img = data['img'][0]
-        baseline = torch.zeros_like(img)
         img.required_grad=True
 
         gc_attr = []
-        dl_attr = []
         for target_idx in CLASS_IDXs:
             gc = lgc.attribute(img, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
             gc = gc.cpu().detach().numpy()
             gc_attr.append(gc)
+            
+        # prepare data
+        data = dict(img=img)
+        data = test_pipeline(data)
+        data = collate([data], samples_per_gpu=1)
+        if next(model.parameters()).is_cuda:
+            # scatter to specified GPU
+            data = scatter(data, [device])[0]
+        else:
+            data['img_metas'] = [i.data[0] for i in data['img_metas']]
+
+        img = data['img'][0]
+        baseline = torch.zeros_like(img)
+        img.required_grad=True
+        
+        dl_attr = []
+        for target_idx in CLASS_IDXs:
             dl = ldl.attribute(img, baselines=baseline, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
             dl = dl.cpu().detach().numpy()
             dl_attr.append(dl)
