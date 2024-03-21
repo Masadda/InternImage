@@ -36,8 +36,19 @@ from captum.attr import (
 )
 from captum.attr import visualization as viz
 
+from PIL import Image
+import matplotlib
+import matplotlib.pyplot as plt
+import glob
+from pathlib import Path
 
+#---settings and consts--------
 CLASS_IDXs = [0,1,2,3,4,5,6]
+LABELS = ["Background", "Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss"]
+
+matplotlib.use('Agg') # disable plt show on savefig
+
+#------------------------------
 
 class LoadImage:
     """A simple pipeline to load image."""
@@ -95,19 +106,20 @@ class Deeplift_model_wrapper(nn.Module):
 
         return out
 
-def explain(model, img_dir, out_dir):
+def explain(model, img_dir, pred_dir, out_dir):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
-    if len(img_files) == 0: raise ValueError("Image dir was found empty; Please check or provide different path.")
+    assert len(img_files),"Image dir was found empty; Please check or provide different path.")
+    
+    pred_files = [os.path.join(pred_dir, f) for f in sorted(os.listdir(pred_dir))]
+    assert len(pred_files),"Pred dir was found empty; Please check or provide different path.")
+    
+    assert len(img_files) == len(pred_files), 'Count of images and predictions did not match'
     
     os.makedirs(out_dir, exist_ok=True)
 
     if hasattr(model, 'module'):
         model = model.module
     model.eval()
-    
-    #load image
-    #img = torch.from_numpy(cv2.cvtColor(cv2.imread(img_name), cv2.COLOR_BGR2RGB))
-    #baseline = torch.zeros_like(img)
     
     # create image meta required for internimage
     cfg = model.cfg
@@ -121,9 +133,10 @@ def explain(model, img_dir, out_dir):
     lgc = LayerGradCam(GradCAM_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
     ldl = LayerDeepLift(Deeplift_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
     
-    for img in img_files:
+    for img, pred in zip(img_files, pred_files):
         
         filename = img.split(os.sep)[-1].split('.')[0]
+        assert filename == pred.split(os.sep)[-1].split('.')[0], f"img and pred did not match up for img {filename} and pred {pred.split(os.sep)[-1].split('.')[0]}"
         
         # prepare data
         data = dict(img=img)
@@ -135,33 +148,78 @@ def explain(model, img_dir, out_dir):
         else:
             data['img_metas'] = [i.data[0] for i in data['img_metas']]
 
-        img = data['img'][0]
-        img.required_grad=True
+        inp_img = data['img'][0]
+        inp_img.required_grad=True
 
         gc_attr = []
         dl_attr = []
         for target_idx in CLASS_IDXs:
-            gc = lgc.attribute(img, additional_forward_args=data['img_metas'][0], target=target_idx)
+            gc = lgc.attribute(inp_img, additional_forward_args=data['img_metas'][0], target=target_idx)
             gc = gc.cpu().detach().numpy()
             gc_attr.append(gc)
 
-            dl = ldl.attribute(img, additional_forward_args=data['img_metas'][0], target=target_idx)
+            dl = ldl.attribute(inp_img, additional_forward_args=data['img_metas'][0], target=target_idx)
             dl = dl.cpu().detach().numpy()
             dl_attr.append(dl)
             
         gc_attr = np.stack(gc_attr, axis=0)
         dl_attr = np.stack(dl_attr, axis=0)
-        np.save(os.path.join(out_dir, 'gc_' + filename), gc_attr)
-        np.save(os.path.join(out_dir, 'dl_' + filename), dl_attr)
-        print(f'saved data for sample {filename}')
+        
+        #create visualization
+        
+        img = Image.open(img)
+        pred = Image.open(pred)
+        
+        #create gradcam-viz
+        fig, axarr = plt.subplots(nrows=3,ncols=3)
+        fig.set_size_inches(24,18)
+        fig.suptitle(f'LayerGradCAM - Model: {trainlog_id} - Sample: {filename}', fontsize='xx-large')
+        axarr[0][0].axis('off')
+        axarr[0][0].set_title('Original')
+        axarr[0][0].imshow(img)
+        axarr[0][1].axis('off')
+        axarr[0][1].set_title('Prediction')
+        axarr[0][1].imshow(pred)
+        for idx in range(0, gc_attr.shape[0]):
+            idx_row = 0 if idx == 0 else (1 if idx <=3 else 2)
+            idx_col = (idx + 2) % 3
+            axarr[idx_row][idx_col].axis('off')
+            axarr[idx_row][idx_col].set_title(LABELS[idx])
+            if np.sum(gc_attr[idx]) == 0:
+                continue
+            fig, _ = viz.visualize_image_attr(np.transpose(gc_attr[idx][0], axes=(1,2,0)), method='heat_map', sign='all', outlier_perc=2, plt_fig_axis=(fig, axarr[idx_row][idx_col]), show_colorbar=True, use_pyplot=False)
+        fig.savefig(os.path.join(out_dir, filename + "_gc.jpg"), bbox_inches='tight')
+        
+        #create deeplift-viz
+        fig, axarr = plt.subplots(nrows=3,ncols=3)
+        fig.set_size_inches(24,18)
+        fig.suptitle(f'LayerGradCAM - Model: {trainlog_id} - Sample: {filename}', fontsize='xx-large')
+        axarr[0][0].axis('off')
+        axarr[0][0].set_title('Original')
+        axarr[0][0].imshow(img)
+        axarr[0][1].axis('off')
+        axarr[0][1].set_title('Prediction')
+        axarr[0][1].imshow(pred)
+        for idx in range(0, dl_attr.shape[0]):
+            idx_row = 0 if idx == 0 else (1 if idx <=3 else 2)
+            idx_col = (idx + 2) % 3
+            axarr[idx_row][idx_col].axis('off')
+            axarr[idx_row][idx_col].set_title(LABELS[idx])
+            if np.sum(dl_attr[idx]) == 0:
+                continue
+            fig, _ = viz.visualize_image_attr(np.transpose(dl_attr[idx][0], axes=(1,2,0)), method='heat_map', sign='all', outlier_perc=2, plt_fig_axis=(fig, axarr[idx_row][idx_col]), show_colorbar=True, use_pyplot=False)
+        fig.savefig(os.path.join(out_dir, filename + "_dl.jpg"), bbox_inches='tight')
+        #iter done
+        print(f'saved visualization for sample {filename}')
 
     return
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('img', help='Image directory containing images')
     parser.add_argument('config', help='Config file')
     parser.add_argument('checkpoint', help='Checkpoint file')
+    parser.add_argument('--img', help='Image directory containing gt images')
+    parser.add_argument('--pred', help='Image directory containing pred images')
     parser.add_argument('--out', type=str, default="demo", help='out dir')
     
     #unused params
@@ -196,7 +254,7 @@ def main():
         
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
-        explain(model, args.img, args.out)
+        explain(model, args.img, args.pred, args.out)
     else:
         raise ValueError("Please provide images as path to dir")
 
