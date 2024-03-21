@@ -67,6 +67,8 @@ class LoadImage:
 def explain(model, img_dir, out_dir):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
     if len(img_files) == 0: raise ValueError("Image dir was found empty; Please check or provide different path.")
+    
+    os.makedirs(out_dir, exist_ok=True)
 
     if hasattr(model, 'module'):
         model = model.module
