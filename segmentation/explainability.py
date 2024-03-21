@@ -66,7 +66,7 @@ class LoadImage:
         return results
 
 #create explainability (captum)
-def custom_forward(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
+def forward_gradcam(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
     """Simple test with single image."""
     seg_logit = model.inference(img, img_meta, True)
     seg_logit = seg_logit.cpu()
@@ -76,6 +76,12 @@ def custom_forward(img, img_meta, model): #adapted from https://github.com/open-
     out = (seg_logit * select_inds).sum(dim=(2,3))
 
     return out
+    
+def forward_deeplift(img, img_meta, model):
+    seg_logit = model.inference(img, img_meta, True)
+    seg_logit = seg_logit.cpu()
+
+    return seg_logit
 
 def explain(model, img_dir, out_dir):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
@@ -100,7 +106,8 @@ def explain(model, img_dir, out_dir):
 
     #pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
 
-    lgc = LayerGradCam(custom_forward, model.decode_head.fpn_bottleneck.conv)
+    lgc = LayerGradCam(forward_gradcam, model.decode_head.fpn_bottleneck.conv)
+    model.forward = forward_deeplift
     ldl = LayerDeepLift(model, model.decode_head.fpn_bottleneck.conv)
     
     for img in img_files:
