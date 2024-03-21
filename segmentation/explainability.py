@@ -66,22 +66,32 @@ class LoadImage:
         return results
 
 #create explainability (captum)
-def forward_gradcam(img, img_meta, model): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
-    """Simple test with single image."""
-    seg_logit = model.inference(img, img_meta, True)
-    seg_logit = seg_logit.cpu()
+class GradCAM_model_wrapper(nn.Module):
+    def __init__(self, model):
+        self.model = model
+        
+    def forward(img, img_meta): #adapted from https://github.com/open-mmlab/mmsegmentation/blob/eeeaff942169dea8424cd930b4306109afdba1d0/mmseg/models/segmentors/encoder_decoder.py#L260
+        """Simple test with single image."""
+        seg_logit = self.model.inference(img, img_meta, True)
+        seg_logit = seg_logit.cpu()
+        seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
+        select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
+        out = (seg_logit * select_inds).sum(dim=(2,3))
 
-    seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
-    select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
-    out = (seg_logit * select_inds).sum(dim=(2,3))
+        return out
 
-    return out
-    
-def forward_deeplift(img, img_meta, model):
-    seg_logit = model.inference(img, img_meta, True)
-    seg_logit = seg_logit.cpu()
+class Deeplift_model_wrapper(nn.Module):
+    def __init__(self, model):
+        self.model = model
+        
+    def forward(self, img, img_meta):
+        seg_logit = self.model.inference(img, img_meta, True)
+        seg_logit = seg_logit.cpu()
+        seg_pred = torch.argmax(seg_logit, dim=1, keepdim=True)
+        select_inds = torch.zeros_like(seg_logit[0:1]).scatter_(1, seg_pred, 1)
+        out = (seg_logit * select_inds).sum(dim=(2,3))
 
-    return seg_logit
+        return out
 
 def explain(model, img_dir, out_dir):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
@@ -106,9 +116,8 @@ def explain(model, img_dir, out_dir):
 
     #pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
 
-    lgc = LayerGradCam(forward_gradcam, model.decode_head.fpn_bottleneck.conv)
-    model.forward = forward_deeplift
-    ldl = LayerDeepLift(model, model.decode_head.fpn_bottleneck.conv)
+    lgc = LayerGradCam(GradCAM_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
+    ldl = LayerDeepLift(Deeplift_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
     
     for img in img_files:
         
@@ -128,28 +137,13 @@ def explain(model, img_dir, out_dir):
         img.required_grad=True
 
         gc_attr = []
-        for target_idx in CLASS_IDXs:
-            gc = lgc.attribute(img, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
-            gc = gc.cpu().detach().numpy()
-            gc_attr.append(gc)
-            
-        # prepare data
-        data = dict(img=img)
-        data = test_pipeline(data)
-        data = collate([data], samples_per_gpu=1)
-        if next(model.parameters()).is_cuda:
-            # scatter to specified GPU
-            data = scatter(data, [device])[0]
-        else:
-            data['img_metas'] = [i.data[0] for i in data['img_metas']]
-
-        img = data['img'][0]
-        baseline = torch.zeros_like(img)
-        img.required_grad=True
-        
         dl_attr = []
         for target_idx in CLASS_IDXs:
-            dl = ldl.attribute(img, baselines=baseline, target=target_idx, additional_forward_args=(data['img_metas'][0], model))
+            gc = lgc.attribute(img, additional_forward_args=data['img_metas'][0], target=target_idx)
+            gc = gc.cpu().detach().numpy()
+            gc_attr.append(gc)
+
+            dl = ldl.attribute(img, additional_forward_args=data['img_metas'][0], target=target_idx)
             dl = dl.cpu().detach().numpy()
             dl_attr.append(dl)
             
