@@ -20,6 +20,8 @@ import numpy as np
 import json
 import torch
 import torch.nn as nn
+import glob
+
 #from functools import partial
 
 #explainability
@@ -106,14 +108,14 @@ class Deeplift_model_wrapper(nn.Module):
 
         return out
 
-def explain(model, img_dir, pred_dir, out_dir):
+def explain(model, img_dir, pred_dir, out_dir, trainlog_id):
     img_files = [os.path.join(img_dir, f) for f in sorted(os.listdir(img_dir))]
-    assert len(img_files),"Image dir was found empty; Please check or provide different path.")
+    assert len(img_files),"Image dir was found empty; Please check or provide different path."
     
-    pred_files = [os.path.join(pred_dir, f) for f in sorted(os.listdir(pred_dir))]
-    assert len(pred_files),"Pred dir was found empty; Please check or provide different path.")
+    pred_files = [os.path.join(pred_dir, f) for f in sorted(glob.glob(os.path.join(pred_dir, '*.jpg')))]
+    assert len(pred_files),"Pred dir was found empty; Please check or provide different path."
     
-    assert len(img_files) == len(pred_files), 'Count of images and predictions did not match'
+    assert len(img_files) == len(pred_files), f'Count of images [{len(img_files)}]and predictions [{len(pred_files)}] did not match'
     
     os.makedirs(out_dir, exist_ok=True)
 
@@ -189,11 +191,11 @@ def explain(model, img_dir, pred_dir, out_dir):
                 continue
             fig, _ = viz.visualize_image_attr(np.transpose(gc_attr[idx][0], axes=(1,2,0)), method='heat_map', sign='all', outlier_perc=2, plt_fig_axis=(fig, axarr[idx_row][idx_col]), show_colorbar=True, use_pyplot=False)
         fig.savefig(os.path.join(out_dir, filename + "_gc.jpg"), bbox_inches='tight')
-        
+        plt.close()
         #create deeplift-viz
         fig, axarr = plt.subplots(nrows=3,ncols=3)
         fig.set_size_inches(24,18)
-        fig.suptitle(f'LayerGradCAM - Model: {trainlog_id} - Sample: {filename}', fontsize='xx-large')
+        fig.suptitle(f'LayerDeepLIFT - Model: {trainlog_id} - Sample: {filename}', fontsize='xx-large')
         axarr[0][0].axis('off')
         axarr[0][0].set_title('Original')
         axarr[0][0].imshow(img)
@@ -209,6 +211,7 @@ def explain(model, img_dir, pred_dir, out_dir):
                 continue
             fig, _ = viz.visualize_image_attr(np.transpose(dl_attr[idx][0], axes=(1,2,0)), method='heat_map', sign='all', outlier_perc=2, plt_fig_axis=(fig, axarr[idx_row][idx_col]), show_colorbar=True, use_pyplot=False)
         fig.savefig(os.path.join(out_dir, filename + "_dl.jpg"), bbox_inches='tight')
+        plt.close()
         #iter done
         print(f'saved visualization for sample {filename}')
 
@@ -242,6 +245,8 @@ def main():
     torch.manual_seed(123)
     np.random.seed(123)
 
+    trainlog_id = args.checkpoint.split(os.sep)[-2]
+
     # build the model from a config file and a checkpoint file
     model = init_segmentor(args.config, checkpoint=None, device=args.device)
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
@@ -254,7 +259,7 @@ def main():
         
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
-        explain(model, args.img, args.pred, args.out)
+        explain(model, args.img, args.pred, args.out, trainlog_id)
     else:
         raise ValueError("Please provide images as path to dir")
 
