@@ -40,11 +40,12 @@ def test_single_image(model, img_name, out_dir, color_palette, opacity, gt_dir):
     print(f"Result is save at {out_path}")
 
     #evaluation
-    gt_file = osp.join(gt_dir, osp.basename(img_name).split(".")[0] + ".png")
-    gt = cv2.imread(gt_file, cv2.IMREAD_GRAYSCALE)
-    eval = jaccard_score(gt.flatten(), result[0].flatten(), average='weighted')
-
-    return eval
+    if gt_dir is not None:
+        gt_file = osp.join(gt_dir, osp.basename(img_name).split(".")[0] + ".png")
+        gt = cv2.imread(gt_file, cv2.IMREAD_GRAYSCALE)
+        eval = jaccard_score(gt.flatten(), result[0].flatten(), average='weighted')
+        return eval
+    return
 
 def main():
     parser = ArgumentParser()
@@ -78,7 +79,6 @@ def main():
     else:
         model.CLASSES = get_classes(args.palette)
         palette = get_palette(args.palette)
-        
  
     # check arg.img is directory of a single image.
     if osp.isdir(args.img):
