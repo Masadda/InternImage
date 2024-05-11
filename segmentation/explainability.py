@@ -132,9 +132,10 @@ def explain(model, img_dir, pred_dir, out_dir, trainlog_id):
 
     #pass_forward = partial(custom_forward, img_meta = data['img_metas'][0], model = model)
 
-    lgc = LayerGradCam(GradCAM_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
-    ldl = LayerDeepLift(Deeplift_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
-    
+    #lgc = LayerGradCam(GradCAM_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
+    lgc = LayerGradCam(GradCAM_model_wrapper(model), model.decode_head.conv_seg)
+    #ldl = LayerDeepLift(Deeplift_model_wrapper(model), model.decode_head.fpn_bottleneck.conv)
+    ldl = LayerDeepLift(Deeplift_model_wrapper(model), model.decode_head.conv_seg)
     for img, pred in zip(img_files, pred_files):
         
         filename = img.split(os.sep)[-1].split('.')[0]
