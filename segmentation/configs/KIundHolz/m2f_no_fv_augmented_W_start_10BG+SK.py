@@ -5,7 +5,7 @@
 # --------------------------------------------------------
 _base_ = [
     '../_base_/models/mask2former_beit_KIundHolz_full.py', '../_base_/datasets/KIundHolz_no_fv_augmented.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_5k_eval_2.py'
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_5k_eval_2.5k.py'
 ]
 num_classes = 7
 load_from = 'https://huggingface.co/OpenGVLab/InternImage/resolve/main/mask2former_internimage_h_896_80k_cocostuff164k.pth'
