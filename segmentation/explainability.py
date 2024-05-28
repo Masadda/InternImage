@@ -46,7 +46,8 @@ from pathlib import Path
 
 #---settings and consts--------
 CLASS_IDXs = [0,1,2,3,4,5,6]
-LABELS = ["Background", "Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss"]
+#LABELS = ["Background", "Schnittkante", "Fäule", "Fäule(vielleicht)", "Druckholz", "Verfärbung", "Einwuchs_Riss"]
+LABELS = ["Background", "Crosscut", "Rot", "Rot(maybe)", "PressureWood", "Discoloration", "Ingrowth_Crack"]
 
 matplotlib.use('Agg') # disable plt show on savefig
 
